@@ -35,7 +35,6 @@
         const proxyM3uUrl = "https://itv.onlinework861.workers.dev/?url=" + encodeURIComponent("http://geotv.space:8880/get.php?username=4cf29ac2&password=7ce21cd9&type=m3u_plus&output=ts");
         const proxyBaseUrl = "https://itv.onlinework861.workers.dev/?url=";
 
-
         let allChannels = [];
 
         async function loadPlaylist() {
@@ -50,19 +49,25 @@
         }
 
         function parseM3U(data) {
-            const lines = data.split('\n');
+            const lines = data.split(/\r?\n/);
             allChannels = [];
-            let currentChannel = {};
+            let currentName = "";
 
             for (let i = 0; i < lines.length; i++) {
                 let line = lines[i].trim();
                 if (line.startsWith('#EXTINF:')) {
-                    let nameMatch = line.match(/,(.+)$/);
-                    currentChannel.name = nameMatch ? nameMatch[1] : "Unknown Channel";
+                    const commaIndex = line.lastIndexOf(',');
+                    if (commaIndex !== -1) {
+                        currentName = line.substring(commaIndex + 1).trim();
+                    } else {
+                        currentName = "Unknown Channel";
+                    }
                 } else if (line && !line.startsWith('#')) {
-                    currentChannel.url = line;
-                    allChannels.push({ ...currentChannel });
-                    currentChannel = {};
+                    allChannels.push({
+                        name: currentName || "Unknown Channel",
+                        url: line
+                    });
+                    currentName = "";
                 }
             }
             displayChannels(allChannels.slice(0, 100));
