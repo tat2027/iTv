@@ -2,13 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>IPTV Web Player - 17K Optimized</title>
+    <title>IPTV M3U Web Player</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         body { font-family: Arial, sans-serif; background: #121212; color: #fff; margin: 0; padding: 20px; }
-        .tabs { display: flex; gap: 10px; margin-bottom: 10px; }
-        .tabs button { padding: 10px 20px; background: #333; color: #fff; border: none; cursor: pointer; border-radius: 4px; }
-        .tabs button.active { background: #e50914; }
         .container { display: flex; gap: 20px; }
         input { padding: 10px; background: #222; color: #fff; border: 1px solid #444; margin-bottom: 10px; width: 100%; box-sizing: border-box; }
         .sidebar { width: 350px; display: flex; flex-direction: column; }
@@ -20,19 +17,13 @@
 </head>
 <body>
 
-    <h2>IPTV Web Player (17K+ Channels Optimized)</h2>
-    
-    <div class="tabs">
-        <button id="btnLive" class="active" onclick="switchCategory('live')">Live TV</button>
-        <button id="btnMovies" onclick="switchCategory('movies')">Movies</button>
-        <button id="btnSeries" onclick="switchCategory('series')">Series</button>
-    </div>
+    <h2>IPTV M3U Player (Geotv.space)</h2>
 
     <div class="container">
         <div class="sidebar">
-            <input type="text" id="searchBox" placeholder="Type to search from 17,000+ items..." onkeyup="filterItems()">
+            <input type="text" id="searchBox" placeholder="Search channels..." onkeyup="filterItems()">
             <div id="itemList" class="list-box">
-                <div class="list-item">Loading channels...</div>
+                <div class="list-item">Loading M3U playlist...</div>
             </div>
         </div>
         <div style="flex-grow: 1;">
@@ -41,68 +32,56 @@
     </div>
 
     <script>
-        const serverUrl = "http://geotv.space:8880";
-        const username = "4cf29ac2";
-        const password = "7ce21cd9";
+        const proxyM3uUrl = "https://abc-123.onlinework861.workers.dev/?url=" + encodeURIComponent("http://geotv.space:8880/get.php?username=4cf29ac2&password=7ce21cd9&type=m3u_plus&output=ts");
         const proxyBaseUrl = "https://abc-123.onlinework861.workers.dev/?url=";
 
-        let currentType = 'live';
-        let allItems = [];
+        let allChannels = [];
 
-        async function switchCategory(type) {
-            currentType = type;
-            document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
-            document.getElementById('btn' + type.charAt(0).toUpperCase() + type.slice(1)).classList.add('active');
-            document.getElementById('searchBox').value = '';
-            await loadData();
-        }
-
-        async function loadData() {
-            let action = 'get_live_streams';
-            if (currentType === 'movies') action = 'get_vod_streams';
-            if (currentType === 'series') action = 'get_series';
-
-            document.getElementById('itemList').innerHTML = '<div class="list-item">Loading 17K+ data...</div>';
-
+        async function loadPlaylist() {
             try {
-                const apiLink = `${serverUrl}/player_api.php?username=${username}&password=${password}&action=${action}`;
-                const response = await fetch(proxyBaseUrl + encodeURIComponent(apiLink));
-                allItems = await response.json();
-                displayItems(allItems.slice(0, 100)); // Performance ke liye shuru mein sirf 100 items render honge
+                const response = await fetch(proxyM3uUrl);
+                const text = await response.text();
+                parseM3U(text);
             } catch (error) {
-                console.error("Error loading data:", error);
-                document.getElementById('itemList').innerHTML = '<div class="list-item">Error loading data.</div>';
+                console.error("Error loading playlist:", error);
+                document.getElementById('itemList').innerHTML = '<div class="list-item">Error loading playlist.</div>';
             }
         }
 
-        function displayItems(items) {
+        function parseM3U(data) {
+            const lines = data.split('\n');
+            allChannels = [];
+            let currentChannel = {};
+
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i].trim();
+                if (line.startsWith('#EXTINF:')) {
+                    let nameMatch = line.match(/,(.+)$/);
+                    currentChannel.name = nameMatch ? nameMatch[1] : "Unknown Channel";
+                } else if (line && !line.startsWith('#')) {
+                    currentChannel.url = line;
+                    allChannels.push({ ...currentChannel });
+                    currentChannel = {};
+                }
+            }
+            displayChannels(allChannels.slice(0, 100));
+        }
+
+        function displayChannels(channels) {
             const listContainer = document.getElementById('itemList');
             listContainer.innerHTML = "";
-            if (!Array.isArray(items) || items.length === 0) {
+            if (channels.length === 0) {
                 listContainer.innerHTML = '<div class="list-item">No results found</div>';
                 return;
             }
 
-            items.forEach(item => {
+            channels.forEach(channel => {
                 let div = document.createElement('div');
                 div.className = 'list-item';
-                let rawStream = "";
-
-                if (currentType === 'live') {
-                    rawStream = `${serverUrl}/live/${username}/${password}/${item.stream_id}.ts`;
-                } else if (currentType === 'movies') {
-                    let ext = item.container_extension || 'mp4';
-                    rawStream = `${serverUrl}/movie/${username}/${password}/${item.stream_id}.${ext}`;
-                } else if (currentType === 'series') {
-                    div.innerText = item.name;
-                    div.onclick = () => alert("Series episodes ke liye mazeed API routing darkar hai.");
-                    listContainer.appendChild(div);
-                    return;
-                }
-
-                let finalUrl = proxyBaseUrl + encodeURIComponent(rawStream);
-                div.innerText = item.name || item.title;
-                div.onclick = () => playItem(finalUrl);
+                div.innerText = channel.name;
+                
+                let finalStreamUrl = proxyBaseUrl + encodeURIComponent(channel.url);
+                div.onclick = () => playChannel(finalStreamUrl);
                 listContainer.appendChild(div);
             });
         }
@@ -110,17 +89,17 @@
         function filterItems() {
             const query = document.getElementById('searchBox').value.toLowerCase();
             if (query.length < 2) {
-                displayItems(allItems.slice(0, 100)); // Agar search khali ho toh pehle 100 dikhayein
+                displayChannels(allChannels.slice(0, 100));
                 return;
             }
-            const filtered = allItems.filter(i => (i.name || i.title || '').toLowerCase().includes(query));
-            displayItems(filtered.slice(0, 100)); // Search results mein bhi max 100 dikhayein taake fast rahay
+            const filtered = allChannels.filter(c => c.name.toLowerCase().includes(query));
+            displayChannels(filtered.slice(0, 100));
         }
 
-        function playItem(url) {
+        function playChannel(url) {
             if (!url) return;
             const video = document.getElementById('videoPlayer');
-            if (Hls.isSupported() && currentType === 'live') {
+            if (Hls.isSupported()) {
                 const hls = new Hls();
                 hls.loadSource(url);
                 hls.attachMedia(video);
@@ -131,7 +110,7 @@
             }
         }
 
-        loadData();
+        loadPlaylist();
     </script>
 </body>
 </html>
