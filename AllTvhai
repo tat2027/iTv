@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>IPTV - Live, Movies & Series Player</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background: #121212; color: #fff; margin: 0; padding: 20px; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 10px; }
+        .tabs button { padding: 10px 20px; background: #333; color: #fff; border: none; cursor: pointer; border-radius: 4px; }
+        .tabs button.active { background: #e50914; }
+        .container { display: flex; gap: 20px; }
+        select, input { padding: 10px; background: #222; color: #fff; border: 1px solid #444; margin-bottom: 10px; width: 100%; }
+        .sidebar { width: 320px; }
+        video { width: 100%; max-height: 550px; background: #000; }
+    </style>
+</head>
+<body>
+
+    <h2>IPTV Web Player (Live, Movies & Series)</h2>
+    
+    <div class="tabs">
+        <button id="btnLive" class="active" onclick="switchCategory('live')">Live TV</button>
+        <button id="btnMovies" onclick="switchCategory('movies')">Movies</button>
+        <button id="btnSeries" onclick="switchCategory('series')">Series</button>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <input type="text" id="searchBox" placeholder="Search..." onkeyup="filterItems()">
+            <select id="itemSelect" size="20" onchange="playItem(this.value)">
+                <option value="">Loading...</option>
+            </select>
+        </div>
+        <div style="flex-grow: 1;">
+            <video id="videoPlayer" controls autoplay></video>
+        </div>
+    </div>
+
+    <script>
+        const serverUrl = "http://AapkaServerIP:8880";
+        const username = "AapkaUsername";
+        const password = "AapkaPassword";
+        const proxyBaseUrl = "https://abc-123.onlinework861.workers.dev/?url=";
+
+        let currentType = 'live';
+        let allItems = [];
+
+        async function switchCategory(type) {
+            currentType = type;
+            document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn' + type.charAt(0).toUpperCase() + type.slice(1)).classList.add('active');
+            document.getElementById('searchBox').value = '';
+            await loadData();
+        }
+
+        async function loadData() {
+            let action = 'get_live_streams';
+            if (currentType === 'movies') action = 'get_vod_streams';
+            if (currentType === 'series') action = 'get_series';
+
+            try {
+                const apiLink = `${serverUrl}/player_api.php?username=${username}&password=${password}&action=${action}`;
+                const response = await fetch(proxyBaseUrl + encodeURIComponent(apiLink));
+                allItems = await response.json();
+                displayItems(allItems);
+            } catch (error) {
+                console.error("Error loading data:", error);
+            }
+        }
+
+        function displayItems(items) {
+            const select = document.getElementById('itemSelect');
+            select.innerHTML = "";
+            if (!Array.isArray(items)) return;
+
+            items.forEach(item => {
+                let option = document.createElement('option');
+                let rawStream = "";
+
+                if (currentType === 'live') {
+                    rawStream = `${serverUrl}/live/${username}/${password}/${item.stream_id}.ts`;
+                } else if (currentType === 'movies') {
+                    let ext = item.container_extension || 'mp4';
+                    rawStream = `${serverUrl}/movie/${username}/${password}/${item.stream_id}.${ext}`;
+                } else if (currentType === 'series') {
+                    // Series ke liye episode selection ka link alag hota hai, yahan series ID handle hoti hai
+                    option.text = item.name;
+                    option.value = item.series_id;
+                    select.appendChild(option);
+                    return;
+                }
+
+                option.value = proxyBaseUrl + encodeURIComponent(rawStream);
+                option.text = item.name || item.title;
+                select.appendChild(option);
+            });
+        }
+
+        function filterItems() {
+            const query = document.getElementById('searchBox').value.toLowerCase();
+            const filtered = allItems.filter(i => (i.name || i.title || '').toLowerCase().includes(query));
+            displayItems(filtered);
+        }
+
+        function playItem(url) {
+            if (!url || currentType === 'series') {
+                if(currentType === 'series') alert("Series episodes ke liye mazeed API routing darkar hoti hai.");
+                return;
+            }
+            
+            const video = document.getElementById('videoPlayer');
+            if (Hls.isSupported() && currentType === 'live') {
+                const hls = new Hls();
+                hls.loadSource(url);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, () => { video.play(); });
+            } else {
+                video.src = url;
+                video.play();
+            }
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
