@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>IPTV - Live, Movies & Series Player</title>
+    <title>IPTV Web Player - 17K Optimized</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         body { font-family: Arial, sans-serif; background: #121212; color: #fff; margin: 0; padding: 20px; }
@@ -10,14 +10,17 @@
         .tabs button { padding: 10px 20px; background: #333; color: #fff; border: none; cursor: pointer; border-radius: 4px; }
         .tabs button.active { background: #e50914; }
         .container { display: flex; gap: 20px; }
-        select, input { padding: 10px; background: #222; color: #fff; border: 1px solid #444; margin-bottom: 10px; width: 100%; }
-        .sidebar { width: 320px; }
+        input { padding: 10px; background: #222; color: #fff; border: 1px solid #444; margin-bottom: 10px; width: 100%; box-sizing: border-box; }
+        .sidebar { width: 350px; display: flex; flex-direction: column; }
+        .list-box { height: 500px; background: #1e1e1e; border: 1px solid #444; overflow-y: auto; border-radius: 4px; }
+        .list-item { padding: 10px; border-bottom: 1px solid #333; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .list-item:hover { background: #333; }
         video { width: 100%; max-height: 550px; background: #000; }
     </style>
 </head>
 <body>
 
-    <h2>IPTV Web Player (Live, Movies & Series)</h2>
+    <h2>IPTV Web Player (17K+ Channels Optimized)</h2>
     
     <div class="tabs">
         <button id="btnLive" class="active" onclick="switchCategory('live')">Live TV</button>
@@ -27,10 +30,10 @@
 
     <div class="container">
         <div class="sidebar">
-            <input type="text" id="searchBox" placeholder="Search..." onkeyup="filterItems()">
-            <select id="itemSelect" size="20" onchange="playItem(this.value)">
-                <option value="">Loading...</option>
-            </select>
+            <input type="text" id="searchBox" placeholder="Type to search from 17,000+ items..." onkeyup="filterItems()">
+            <div id="itemList" class="list-box">
+                <div class="list-item">Loading channels...</div>
+            </div>
         </div>
         <div style="flex-grow: 1;">
             <video id="videoPlayer" controls autoplay></video>
@@ -59,23 +62,30 @@
             if (currentType === 'movies') action = 'get_vod_streams';
             if (currentType === 'series') action = 'get_series';
 
+            document.getElementById('itemList').innerHTML = '<div class="list-item">Loading 17K+ data...</div>';
+
             try {
                 const apiLink = `${serverUrl}/player_api.php?username=${username}&password=${password}&action=${action}`;
                 const response = await fetch(proxyBaseUrl + encodeURIComponent(apiLink));
                 allItems = await response.json();
-                displayItems(allItems);
+                displayItems(allItems.slice(0, 100)); // Performance ke liye shuru mein sirf 100 items render honge
             } catch (error) {
                 console.error("Error loading data:", error);
+                document.getElementById('itemList').innerHTML = '<div class="list-item">Error loading data.</div>';
             }
         }
 
         function displayItems(items) {
-            const select = document.getElementById('itemSelect');
-            select.innerHTML = "";
-            if (!Array.isArray(items)) return;
+            const listContainer = document.getElementById('itemList');
+            listContainer.innerHTML = "";
+            if (!Array.isArray(items) || items.length === 0) {
+                listContainer.innerHTML = '<div class="list-item">No results found</div>';
+                return;
+            }
 
             items.forEach(item => {
-                let option = document.createElement('option');
+                let div = document.createElement('div');
+                div.className = 'list-item';
                 let rawStream = "";
 
                 if (currentType === 'live') {
@@ -84,31 +94,31 @@
                     let ext = item.container_extension || 'mp4';
                     rawStream = `${serverUrl}/movie/${username}/${password}/${item.stream_id}.${ext}`;
                 } else if (currentType === 'series') {
-                    // Series ke liye episode selection ka link alag hota hai, yahan series ID handle hoti hai
-                    option.text = item.name;
-                    option.value = item.series_id;
-                    select.appendChild(option);
+                    div.innerText = item.name;
+                    div.onclick = () => alert("Series episodes ke liye mazeed API routing darkar hai.");
+                    listContainer.appendChild(div);
                     return;
                 }
 
-                option.value = proxyBaseUrl + encodeURIComponent(rawStream);
-                option.text = item.name || item.title;
-                select.appendChild(option);
+                let finalUrl = proxyBaseUrl + encodeURIComponent(rawStream);
+                div.innerText = item.name || item.title;
+                div.onclick = () => playItem(finalUrl);
+                listContainer.appendChild(div);
             });
         }
 
         function filterItems() {
             const query = document.getElementById('searchBox').value.toLowerCase();
+            if (query.length < 2) {
+                displayItems(allItems.slice(0, 100)); // Agar search khali ho toh pehle 100 dikhayein
+                return;
+            }
             const filtered = allItems.filter(i => (i.name || i.title || '').toLowerCase().includes(query));
-            displayItems(filtered);
+            displayItems(filtered.slice(0, 100)); // Search results mein bhi max 100 dikhayein taake fast rahay
         }
 
         function playItem(url) {
-            if (!url || currentType === 'series') {
-                if(currentType === 'series') alert("Series episodes ke liye mazeed API routing darkar hoti hai.");
-                return;
-            }
-            
+            if (!url) return;
             const video = document.getElementById('videoPlayer');
             if (Hls.isSupported() && currentType === 'live') {
                 const hls = new Hls();
