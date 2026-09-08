@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>IPTV M3U Web Player</title>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mpegts.js@latest/dist/mpegts.js"></script>
     <style>
         body { font-family: Arial, sans-serif; background: #121212; color: #fff; margin: 0; padding: 20px; }
         .container { display: flex; gap: 20px; }
@@ -36,6 +36,7 @@
         const proxyBaseUrl = "https://rapid-heart-9738.onlinework861.workers.dev/?url=";
 
         let allChannels = [];
+        let player = null;
 
         async function loadPlaylist() {
             try {
@@ -93,7 +94,7 @@
         }
 
         function filterItems() {
-            const query = document.getElementById('searchBox').value.toLowerCase();
+            const query = document.getElementById('searchBox'].value.toLowerCase();
             if (query.length < 2) {
                 displayChannels(allChannels.slice(0, 100));
                 return;
@@ -104,9 +105,26 @@
 
         function playChannel(url) {
             if (!url) return;
-            const video = document.getElementById('videoPlayer');
-            video.src = url;
-            video.play().catch(err => console.log("Playback error:", err));
+            const videoElement = document.getElementById('videoPlayer');
+
+            if (player) {
+                player.destroy();
+                player = null;
+            }
+
+            if (mpegts.getFeatureList().mseLivePlayback) {
+                player = mpegts.createPlayer({
+                    type: 'mpegts',
+                    isLive: true,
+                    url: url
+                });
+                player.attachMediaElement(videoElement);
+                player.load();
+                player.play().catch(e => console.log("Playback error:", e));
+            } else {
+                videoElement.src = url;
+                videoElement.play();
+            }
         }
 
         loadPlaylist();
