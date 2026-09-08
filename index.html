@@ -105,15 +105,8 @@
         function playChannel(url) {
             if (!url) return;
             const video = document.getElementById('videoPlayer');
-            if (Hls.isSupported()) {
-                const hls = new Hls();
-                hls.loadSource(url);
-                hls.attachMedia(video);
-                hls.on(Hls.Events.MANIFEST_PARSED, () => { video.play(); });
-            } else {
-                video.src = url;
-                video.play();
-            }
+            video.src = url;
+            video.play().catch(err => console.log("Playback error:", err));
         }
 
         loadPlaylist();
