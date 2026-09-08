@@ -32,7 +32,7 @@
     </div>
 
     <script>
-        const proxyM3uUrl = "https://rapid-heart-9738.onlinework861.workers.dev/?url=" + encodeURIComponent("http://59.103.38.46:8000/playlist.m3u8");
+        const proxyM3uUrl = "https://rapid-heart-9738.onlinework861.workers.dev/?url=" + encodeURIComponent("http://geotv.space:8880/get.php?username=4cf29ac2&password=7ce21cd9&type=m3u_plus&output=ts");
         const proxyBaseUrl = "https://rapid-heart-9738.onlinework861.workers.dev/?url=";
 
         let allChannels = [];
@@ -94,7 +94,7 @@
         }
 
         function filterItems() {
-            const query = document.getElementById('searchBox'].value.toLowerCase();
+            const query = document.getElementById('searchBox').value.toLowerCase();
             if (query.length < 2) {
                 displayChannels(allChannels.slice(0, 100));
                 return;
@@ -131,6 +131,9 @@
                 videoElement.addEventListener('loadedmetadata', () => {
                     videoElement.play();
                 });
+            } else {
+                videoElement.src = url;
+                videoElement.play().catch(e => console.log("Playback error:", e));
             }
         }
 
