@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>IPTV M3U Web Player</title>
-    <script src="https://cdn.jsdelivr.net/npm/mpegts.js@latest/dist/mpegts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         body { font-family: Arial, sans-serif; background: #121212; color: #fff; margin: 0; padding: 20px; }
         .container { display: flex; gap: 20px; }
@@ -36,7 +36,7 @@
         const proxyBaseUrl = "https://rapid-heart-9738.onlinework861.workers.dev/?url=";
 
         let allChannels = [];
-        let player = null;
+        let hls = null;
 
         async function loadPlaylist() {
             try {
@@ -94,7 +94,7 @@
         }
 
         function filterItems() {
-            const query = document.getElementById('searchBox').value.toLowerCase();
+            const query = document.getElementById('searchBox'].value.toLowerCase();
             if (query.length < 2) {
                 displayChannels(allChannels.slice(0, 100));
                 return;
@@ -107,27 +107,30 @@
             if (!url) return;
             const videoElement = document.getElementById('videoPlayer');
 
-            if (player) {
-                player.destroy();
-                player = null;
+            if (hls) {
+                hls.destroy();
+                hls = null;
             }
 
-            if (mpegts.getFeatureList().mseLivePlayback) {
-                player = mpegts.createPlayer({
-                    type: 'mpegts',
-                    isLive: true,
-                    url: url
-                }, {
-                    enableStashBuffer: false,
-                    stashInitialSize: 128,
-                    liveBufferLatencyChasing: true
+            if (Hls.isSupported()) {
+                hls = new Hls({
+                    xhrSetup: function (xhr, url) {
+                        xhr.withCredentials = false;
+                    }
                 });
-                player.attachMediaElement(videoElement);
-                player.load();
-                player.play().catch(e => console.log("Playback error:", e));
-            } else {
+                hls.loadSource(url);
+                hls.attachMedia(videoElement);
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    videoElement.play().catch(e => console.log("Autoplay blocked:", e));
+                });
+                hls.on(Hls.Events.ERROR, function (event, data) {
+                    console.error("HLS Error:", data);
+                });
+            } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
                 videoElement.src = url;
-                videoElement.play();
+                videoElement.addEventListener('loadedmetadata', () => {
+                    videoElement.play();
+                });
             }
         }
 
