@@ -117,6 +117,10 @@
                     type: 'mpegts',
                     isLive: true,
                     url: url
+                }, {
+                    enableStashBuffer: false,
+                    stashInitialSize: 128,
+                    liveBufferLatencyChasing: true
                 });
                 player.attachMediaElement(videoElement);
                 player.load();
